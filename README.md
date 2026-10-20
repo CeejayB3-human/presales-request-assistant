@@ -22,8 +22,8 @@ Quote requests usually arrive as free text written by someone who is not technic
 This prototype prepares that first pass in seconds, so engineers start from a structured draft instead of a blank page.
 
 ## Architecture
+<img width="1536" height="1024" alt="Serverless Presales Request Intake Architecture" src="https://github.com/user-attachments/assets/0b600cf6-5c6f-40b4-bceb-9a5277486b2a" />
 
-![Architecture diagram](docs/architecture.png)
 
 | Step | Flow |
 |------|------|

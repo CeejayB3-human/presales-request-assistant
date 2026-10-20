@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Presales Request Intake Assistant. A serverless app that turns a customer's
+  free-text request into a structured first pass mapped to a service catalog,
+  using Claude on Amazon Bedrock. Creates the catalog bucket, Lambda function,
+  HTTP API, IAM permissions and log group.
+
+Parameters:
+  ModelId:
+    Type: String
+    Default: us.anthropic.claude-sonnet-5
+    Description: Bedrock model ID or inference profile ID enabled in this account and region
+  CatalogKey:
+    Type: String
+    Default: IT_Service_Catalog.pdf
+    Description: Object key of the service catalog PDF inside the catalog bucket
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90]
+    Description: How long to keep Lambda logs in CloudWatch
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [x86_64]
+
+Resources:
+  # ---------------------------------------------------------------- storage
+  CatalogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled
+
+  CatalogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CatalogBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt CatalogBucket.Arn
+              - !Sub "${CatalogBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # ---------------------------------------------------------------- API
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Description: Serves the page (GET /) and the analysis endpoint (POST /analyse)
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 5
+        ThrottlingRateLimit: 2
+
+  # ---------------------------------------------------------------- compute
+  AssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Presales Request Intake Assistant
+      CodeUri: src/
+      Handler: lambda_function.lambda_handler
+      Timeout: 45
+      MemorySize: 256
+      Environment:
+        Variables:
+          MODEL_ID: !Ref ModelId
+          CATALOG_BUCKET: !Ref CatalogBucket
+          CATALOG_KEY: !Ref CatalogKey
+      Policies:
+        - Statement:
+            - Sid: ReadCatalog
+              Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "${CatalogBucket.Arn}/${CatalogKey}"
+            - Sid: InvokeClaude
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "*"
+      Events:
+        Page:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: GET
+        Analyse:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /analyse
+            Method: POST
+
+  AssistantLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AssistantFunction}"
+      RetentionInDays: !Ref LogRetentionDays
+
+Outputs:
+  DemoUrl:
+    Description: Open this URL in a browser
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
+  CatalogBucketName:
+    Description: Upload the service catalog PDF to this bucket
+    Value: !Ref CatalogBucket
+  FunctionName:
+    Value: !Ref AssistantFunction

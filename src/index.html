@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request Intake Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --base:#0D1522;      /* page */
+    --deck:#121D2E;      /* panels */
+    --well:#0A111C;      /* inputs, recessed areas */
+    --rule:#22324A;      /* borders */
+    --rule-2:#2E4363;
+    --text:#E7EDF6;
+    --text-2:#B4C1D4;
+    --muted:#7E8FA8;
+    --accent:#5BA8E6;    /* steel blue */
+    --accent-deep:#2F7CC0;
+    --high:#F07167; --med:#F2B15A; --low:#5FC79A;
+    --sans:"Manrope","Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--base);color:var(--text);font-family:var(--sans);font-size:14.5px;line-height:1.6;
+       -webkit-font-smoothing:antialiased;min-height:100vh;
+       background-image:radial-gradient(1200px 500px at 85% -10%,rgba(91,168,230,.08),transparent 60%)}
+  ::selection{background:rgba(91,168,230,.35)}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 32px;border-bottom:1px solid var(--rule)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .glyph{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));display:grid;place-items:center}
+  .glyph svg{width:16px;height:16px}
+  .brand-name{font-weight:800;font-size:16px;letter-spacing:-.01em}
+  .brand-sub{font-size:12.5px;color:var(--muted);margin-top:-2px}
+  .engine{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--rule);border-radius:999px}
+  .engine i{width:7px;height:7px;border-radius:50%;background:var(--low);box-shadow:0 0 0 3px rgba(95,199,154,.15)}
+
+  .intro{padding:28px 32px 6px;max-width:1440px;margin:0 auto}
+  .intro h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+  .intro p{margin:6px 0 0;color:var(--text-2);max-width:68ch}
+
+  .grid{display:grid;grid-template-columns:minmax(340px,5fr) minmax(0,8fr);gap:20px;padding:20px 32px 48px;max-width:1440px;margin:0 auto}
+  @media (max-width:1000px){.grid{grid-template-columns:1fr}.intro,header{padding-left:16px;padding-right:16px}.grid{padding:16px}}
+
+  .panel{background:var(--deck);border:1px solid var(--rule);border-radius:10px;align-self:start}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--rule)}
+  .panel-head h2{margin:0;font-size:14px;font-weight:700}
+  .panel-body{padding:18px}
+
+  label{display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:7px}
+  select,textarea{width:100%;font:inherit;color:var(--text);background:var(--well);border:1px solid var(--rule-2);border-radius:7px}
+  select{padding:9px 12px;font-size:13.5px;appearance:none;
+         background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237E8FA8' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+         background-repeat:no-repeat;background-position:right 12px center}
+  select option{background:var(--deck)}
+  textarea{min-height:320px;padding:14px;resize:vertical;line-height:1.65}
+  textarea::placeholder{color:#55657D}
+  select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .field+.field{margin-top:16px}
+  .row{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+  .count{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  .btn{font:inherit;font-weight:700;border:0;border-radius:7px;cursor:pointer}
+  .btn-run{background:var(--accent);color:#06121F;padding:11px 20px;font-size:14px}
+  .btn-run:hover{background:#78B9EC}
+  .btn-run:disabled{opacity:.55;cursor:progress}
+  .btn-copy{background:transparent;color:var(--text-2);border:1px solid var(--rule-2);padding:5px 12px;font-size:12.5px;font-weight:600}
+  .btn-copy:hover{color:var(--text);border-color:var(--muted)}
+  .note{margin:16px 0 0;padding-top:14px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted)}
+
+  /* results */
+  .empty{padding:96px 24px;text-align:center}
+  .empty h3{margin:0 0 6px;font-size:15px;font-weight:700;color:var(--text-2)}
+  .empty p{margin:0;color:var(--muted);font-size:13.5px}
+  .working{padding:96px 24px;text-align:center;color:var(--text-2)}
+  .track{height:2px;max-width:260px;margin:0 auto 18px;background:var(--rule);border-radius:2px;overflow:hidden}
+  .track i{display:block;width:40%;height:100%;background:var(--accent);animation:run 1.1s ease-in-out infinite}
+  @keyframes run{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+  @media (prefers-reduced-motion:reduce){.track i{animation:none;width:100%}}
+
+  /* the signature: an urgency band coloured by level */
+  .band{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;padding:18px;border-bottom:1px solid var(--rule);
+        background:linear-gradient(90deg,var(--tint),transparent 70%)}
+  .band.High{--tint:rgba(240,113,103,.16);--c:var(--high)}
+  .band.Medium{--tint:rgba(242,177,90,.14);--c:var(--med)}
+  .band.Low{--tint:rgba(95,199,154,.13);--c:var(--low)}
+  .level{min-width:112px;padding:10px 14px;border:1px solid var(--c);border-radius:8px;color:var(--c)}
+  .level small{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)}
+  .level strong{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+  .band p{margin:0;color:var(--text)}
+  .stats{display:flex;gap:22px;margin-top:6px;font-size:12.5px;color:var(--muted)}
+  .stats b{color:var(--text);font-weight:700}
+
+  .block{padding:18px;border-bottom:1px solid var(--rule)}
+  .block:last-child{border-bottom:0}
+  .block h3{margin:0 0 12px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+  .block p{margin:0;color:var(--text-2);max-width:78ch}
+
+  .req{display:grid;grid-template-columns:96px minmax(0,1fr) minmax(0,1.2fr);gap:16px;padding:14px 0;border-top:1px solid var(--rule)}
+  .req:first-of-type{border-top:0;padding-top:2px}
+  @media (max-width:700px){.req{grid-template-columns:1fr;gap:6px}}
+  .prio{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px}
+  .prio i{width:8px;height:8px;border-radius:2px;background:currentColor}
+  .prio.High{color:var(--high)} .prio.Medium{color:var(--med)} .prio.Low{color:var(--low)}
+  .area{font-weight:700;color:var(--text)}
+  .area.out{color:var(--muted);font-style:italic;font-weight:600}
+  .svc{display:flex;gap:8px;align-items:baseline;margin-top:6px;font-size:13px;color:var(--text-2)}
+  .svc code{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--accent);background:rgba(91,168,230,.1);border:1px solid rgba(91,168,230,.25);border-radius:4px;padding:1px 6px;white-space:nowrap}
+  .need{color:var(--text)}
+  .why{color:var(--muted);font-size:13px;margin-top:3px}
+
+  .pair{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--rule)}
+  .pair .block{border-bottom:0}
+  .pair .block:first-child{border-right:1px solid var(--rule)}
+  @media (max-width:700px){.pair{grid-template-columns:1fr}.pair .block:first-child{border-right:0;border-bottom:1px solid var(--rule)}}
+  ul,ol{margin:0;padding-left:20px;color:var(--text-2)}
+  li{margin-bottom:6px}
+  li::marker{color:var(--muted)}
+  .none{color:var(--muted);font-size:13px}
+
+  .draft{white-space:pre-wrap;background:var(--well);border:1px solid var(--rule);border-radius:8px;padding:16px 18px;color:var(--text);font-size:14px;line-height:1.7}
+  .review{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .time{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .err{margin:18px;padding:14px 16px;border:1px solid rgba(240,113,103,.45);background:rgba(240,113,103,.08);border-radius:8px;color:#F7B4AE;font-size:13.5px}
+  .err b{color:var(--high)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="#06121F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h6"/></svg></div>
+    <div><div class="brand-name">Presales Workbench</div><div class="brand-sub">Request intake</div></div>
+  </div>
+</header>
+
+<div class="intro">
+  <h1>Turn a customer's request into a first pass</h1>
+  <p>Paste what the customer wrote. The assistant maps it to the service catalog, rates urgency, lists the gaps and drafts a reply for an engineer to review.</p>
+</div>
+
+<main class="grid">
+  <section class="panel">
+    <div class="panel-head"><h2>Customer request</h2></div>
+    <div class="panel-body">
+      <div class="field">
+        <label for="sample">Start from an example</label>
+        <select id="sample">
+          <option value="">Choose an example request</option>
+          <option value="clear">Logistics company with several issues</option>
+          <option value="vague">General enquiry with little detail</option>
+          <option value="incident">Payment fraud after a phishing email</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="msg">Request text</label>
+        <textarea id="msg" maxlength="4000" placeholder="Paste an email, web form message, call notes or chat transcript"></textarea>
+      </div>
+      <div class="row">
+        <span class="count" id="count">0 of 4,000 characters</span>
+        <button class="btn btn-run" id="go">Analyse request</button>
+      </div>
+      <p class="note">Results are a draft for internal review. Nothing is sent to the customer.</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-live="polite">
+    <div class="panel-head"><h2>Analysis</h2><span class="time" id="time"></span></div>
+    <div id="out">
+      <div class="empty"><h3>No analysis yet</h3><p>Choose an example or paste a request, then select Analyse request.</p></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const SAMPLES = {
+  clear: "Hello, we are a logistics company in Lagos with about 60 staff, one office and a small warehouse. Our internet keeps going down, sometimes for hours, and it stops dispatch. Staff have been getting strange emails, and two people clicked on something last month. We are not sure what happened after that. Our server is an old PC under a desk in the admin office. There is a backup to an external drive but nobody has ever tested restoring it. We also want proper invoicing software because we use Excel today. Our budget is small, so we need to know what to do first.\n\nThanks,\nAmaka (Operations Manager)",
+  vague: "Hi, we need IT help. Things are slow and people keep complaining. Can someone come and look at it? Thanks.",
+  incident: "URGENT. This morning one of our accounts staff got an email that looked like it was from our bank. She clicked the link and logged in, and an hour later we saw a transfer of 4.2 million naira we did not make. We have about 25 staff on laptops and use the same email for everything. What should we do right now? Please call me."
+};
+const $ = id => document.getElementById(id);
+const msg = $("msg"), out = $("out"), go = $("go"), time = $("time");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const upd = () => $("count").textContent = msg.value.length.toLocaleString() + " of 4,000 characters";
+msg.addEventListener("input", upd);
+$("sample").addEventListener("change", e => { if (SAMPLES[e.target.value]) { msg.value = SAMPLES[e.target.value]; upd(); } });
+
+go.onclick = async () => {
+  const text = msg.value.trim();
+  if (text.length < 15) { out.innerHTML = '<div class="err"><b>Request too short.</b> Enter at least 15 characters.</div>'; return; }
+  go.disabled = true; go.textContent = "Analysing…"; time.textContent = "";
+  out.innerHTML = '<div class="working"><div class="track"><i></i></div>Reading the request against the service catalog</div>';
+  const t0 = performance.now();
+  try {
+    const r = await fetch("analyse", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({message: text})});
+    const data = await r.json().catch(() => ({error: "The server returned an unexpected response (HTTP " + r.status + ")."}));
+    if (!r.ok || data.error) throw new Error(data.error || data.message || ("HTTP " + r.status));
+    render(data);
+    time.textContent = "Completed in " + ((performance.now() - t0) / 1000).toFixed(1) + " s";
+  } catch (e) {
+    out.innerHTML = '<div class="err"><b>Analysis failed.</b> ' + esc(e.message) + '</div>';
+  } finally { go.disabled = false; go.textContent = "Analyse request"; }
+};
+
+const list = (a, tag) => (a && a.length)
+  ? `<${tag}>` + a.map(x => "<li>" + esc(x) + "</li>").join("") + `</${tag}>`
+  : '<span class="none">None identified</span>';
+
+function render(d) {
+  const needs = d.needs || [];
+  const inScope = needs.filter(n => !n.service_area.startsWith("Outside"));
+  const areas = [...new Set(inScope.map(n => n.service_area))];
+  const svc = needs.reduce((a, n) => a + (n.services || []).length, 0);
+  const lvl = esc(d.urgency.level);
+
+  const reqs = needs.map(n => {
+    const outside = n.service_area.startsWith("Outside");
+    const codes = (n.services || []).map(s => `<div class="svc"><code>${esc(s.code)}</code><span>${esc(s.name)}</span></div>`).join("");
+    return `<div class="req">
+      <div><span class="prio ${esc(n.priority)}"><i></i>${esc(n.priority)}</span></div>
+      <div><div class="area ${outside ? "out" : ""}">${esc(n.service_area)}</div>${codes}</div>
+      <div><div class="need">${esc(n.need)}</div><div class="why">${esc(n.reason)}</div></div>
+    </div>`;
+  }).join("");
+
+  out.innerHTML = `
+    <div class="band ${lvl}">
+      <div class="level"><small>Urgency</small><strong>${lvl}</strong></div>
+      <div>
+        <p>${esc(d.urgency.reason)}</p>
+        <div class="stats"><span><b>${areas.length}</b> service areas</span><span><b>${svc}</b> catalog services</span><span><b>${(d.missing_information || []).length}</b> information gaps</span></div>
+      </div>
+    </div>
+    <div class="block"><h3>Situation</h3><p>${esc(d.summary)}</p></div>
+    <div class="block"><h3>Requirements and matching services</h3>${reqs || '<span class="none">No requirements identified</span>'}</div>
+    <div class="pair">
+      <div class="block"><h3>Information gaps</h3>${list(d.missing_information, "ul")}</div>
+      <div class="block"><h3>Questions for the customer</h3>${list(d.questions, "ol")}</div>
+    </div>
+    <div class="block">
+      <h3>Draft reply <button class="btn btn-copy" id="copy">Copy</button></h3>
+      <div class="draft">${esc(d.draft_reply)}</div>
+      <div class="review">Check and edit before sending.</div>
+    </div>`;
+  $("copy").onclick = () => navigator.clipboard.writeText(d.draft_reply).then(() => {
+    $("copy").textContent = "Copied"; setTimeout(() => $("copy").textContent = "Copy", 1500);
+  });
+}
+</script>
+</body>
+</html>

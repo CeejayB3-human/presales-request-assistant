@@ -80,39 +80,6 @@ This prototype prepares that first pass in seconds, so engineers start from a st
     └── architecture.png     # Architecture diagram
 ```
 
-## Deploy
-
-### Prerequisites
-
-1. An AWS account, working in **us-east-1** (or another region where your chosen Claude model is available).
-2. Access to a Claude model in **Amazon Bedrock**. Open the Bedrock console, find the model in the Model catalog and run a test in the playground. If prompted, submit the Anthropic use-case form.
-3. The model's **inference profile ID**, for example `us.anthropic.claude-sonnet-5`.
-
-### Option A: AWS CloudShell (recommended, nothing to install)
-
-Open CloudShell from the AWS console (SAM CLI and AWS CLI are preinstalled), then:
-
-```bash
-git clone https://github.com/<your-username>/presales-request-assistant.git
-cd presales-request-assistant
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh presales-request-assistant us.anthropic.claude-sonnet-5
-```
-
-The script deploys the stack, uploads the catalog PDF to the new bucket and prints the demo URL.
-
-### Option B: SAM CLI manually
-
-```bash
-sam deploy --template-file template.yaml --stack-name presales-request-assistant \
-  --resolve-s3 --capabilities CAPABILITY_IAM \
-  --parameter-overrides ModelId=us.anthropic.claude-sonnet-5
-
-# Upload the catalog to the bucket named in the CatalogBucketName output
-aws s3 cp catalog/IT_Service_Catalog.pdf s3://<CatalogBucketName>/IT_Service_Catalog.pdf
-```
-
-Open the `DemoUrl` output in a browser.
 
 ### Parameters
 
@@ -128,34 +95,6 @@ Open the `DemoUrl` output in a browser.
 2. Choose an example request (logistics company with several issues, general enquiry, or payment fraud after phishing) or paste your own.
 3. Select **Analyse request**. Results appear in about 10–25 seconds.
 
-## Troubleshooting
-
-| Symptom | Cause and fix |
-|---------|---------------|
-| `AccessDeniedException` | Claude is not enabled in Bedrock for this account, or the use-case form is pending |
-| `ValidationException` about the model ID | The `ModelId` parameter does not match the ID shown in the Bedrock console |
-| `Catalog not found` | The PDF was not uploaded to the catalog bucket, or the name differs from `CatalogKey` |
-| "The model's reply could not be read" | The model returned something other than JSON. Select Analyse again |
-| `Service Unavailable` after ~30 s | API Gateway's 30-second limit was reached. Try a faster model such as Claude Haiku |
-
-Logs are in CloudWatch under `/aws/lambda/<FunctionName>`.
-
-## Cost and cleanup
-
-Each analysis is one Bedrock call plus a Lambda invocation; there is no idle cost apart from small S3 storage. To remove everything:
-
-```bash
-aws s3 rm s3://<CatalogBucketName> --recursive   # versioned bucket: also delete old versions in the console
-sam delete --stack-name presales-request-assistant
-```
-
-## Roadmap
-
-- Authentication on the page (Amazon Cognito) before wider use
-- Store requests and the engineer's edited replies in Amazon DynamoDB to measure response times and how often drafts are accepted
-- Alert the team channel for High-urgency requests
-- Amazon Bedrock Knowledge Base over vendor datasheets and past proposals, so drafts can suggest proven solutions
-- CloudWatch alarms on errors and latency
 
 ## Author
 
